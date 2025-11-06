@@ -1,0 +1,19 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - govet
+    - revive
+    - staticcheck
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - say_reasons

@@ -1,0 +1,27 @@
+# Binaries
+bin/
+build/
+dist/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Coverage and test outputs
+coverage.out
+*.out
+
+# Dependency directories
+vendor/
+node_modules/
+
+# Editor and system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.tmp
