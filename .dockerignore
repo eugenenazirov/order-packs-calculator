@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+!docs/*.md
+
+# Configuration examples
+*.example
+config.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+bin/
+*.out
+coverage.out
+*.test
+*.prof
+
+# Dependencies (will be downloaded during build)
+vendor/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+
+# Misc
+Makefile
+*.log
+tmp/
+temp/
+
