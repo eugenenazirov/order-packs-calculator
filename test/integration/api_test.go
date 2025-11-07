@@ -7,11 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go.uber.org/zap/zaptest"
-
 	"github.com/eugenenazirov/re-partners/internal/api"
 	"github.com/eugenenazirov/re-partners/internal/calculator"
 	"github.com/eugenenazirov/re-partners/internal/storage"
+	"go.uber.org/zap/zaptest"
 )
 
 func newRouter(t *testing.T) http.Handler {

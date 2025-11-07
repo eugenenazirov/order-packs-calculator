@@ -225,3 +225,40 @@ func TestParsePackSizes(t *testing.T) {
 		}
 	})
 }
+
+func TestApplyEnvConfigOverridesRateLimits(t *testing.T) {
+	cfg := defaultConfig()
+	t.Setenv("PORT", "")
+	t.Setenv("PACK_SIZES", "")
+	t.Setenv("RATE_LIMIT_RPS", "123.5")
+	t.Setenv("RATE_LIMIT_BURST", "42")
+
+	applyEnvConfig(&cfg)
+
+	if cfg.RateLimitRPS != 123.5 {
+		t.Fatalf("expected RPS env override, got %f", cfg.RateLimitRPS)
+	}
+	if cfg.RateLimitBurst != 42 {
+		t.Fatalf("expected burst env override, got %d", cfg.RateLimitBurst)
+	}
+}
+
+func TestValidateConfigRejectsInvalidValues(t *testing.T) {
+	cfg := defaultConfig()
+	cfg.RateLimitRPS = -1
+	if err := validateConfig(cfg); err == nil {
+		t.Fatalf("expected error for negative rate limit")
+	}
+
+	cfg = defaultConfig()
+	cfg.RateLimitBurst = -5
+	if err := validateConfig(cfg); err == nil {
+		t.Fatalf("expected error for negative burst")
+	}
+
+	cfg = defaultConfig()
+	cfg.InitialPackSizes = nil
+	if err := validateConfig(cfg); err == nil {
+		t.Fatalf("expected error for empty pack sizes")
+	}
+}

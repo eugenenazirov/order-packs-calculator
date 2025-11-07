@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
-	"go.uber.org/zap/zaptest"
-
 	"github.com/eugenenazirov/re-partners/internal/calculator"
 	"github.com/eugenenazirov/re-partners/internal/storage"
+	"go.uber.org/zap/zaptest"
 )
 
 type controllableClock struct {
@@ -189,6 +189,32 @@ func TestPutPackSizesValidatesInput(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPut, "/api/pack-sizes", bytes.NewReader(data))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", rec.Code)
+	}
+}
+
+func TestPutPackSizesRejectsInvalidJSON(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/pack-sizes", bytes.NewBufferString("{invalid"))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", rec.Code)
+	}
+}
+
+func TestCalculateEndpointRejectsInvalidJSON(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/calculate", bytes.NewBufferString("oops"))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -400,4 +426,75 @@ func TestRequestIDPropagation(t *testing.T) {
 	if got := rec.Header().Get("X-Request-ID"); got != "test-request-id" {
 		t.Fatalf("expected X-Request-ID header to be echoed, got %s", got)
 	}
+}
+
+func TestHandleGetPackSizesInternalError(t *testing.T) {
+	handler := NewHandler(calculator.New(), &stubStorage{
+		get: func() ([]int, error) {
+			return nil, errors.New("boom")
+		},
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/pack-sizes", nil)
+	handler.handleGetPackSizes(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
+	}
+}
+
+func TestHandlePutPackSizesInternalError(t *testing.T) {
+	handler := NewHandler(calculator.New(), &stubStorage{
+		get: func() ([]int, error) {
+			return storage.DefaultPackSizes(), nil
+		},
+		set: func([]int) error {
+			return errors.New("boom")
+		},
+	})
+
+	body, err := json.Marshal(map[string]any{"packSizes": []int{10}})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/pack-sizes", bytes.NewReader(body))
+	handler.handlePutPackSizes(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleCalculateInvalidItemsError(t *testing.T) {
+	handler := NewHandler(calculator.New(), storage.NewMemoryStorage())
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/calculate", bytes.NewBufferString(`{"items":-5}`))
+	handler.handleCalculate(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+type stubStorage struct {
+	get func() ([]int, error)
+	set func([]int) error
+}
+
+func (s *stubStorage) GetPackSizes() ([]int, error) {
+	if s.get != nil {
+		return s.get()
+	}
+	return nil, nil
+}
+
+func (s *stubStorage) SetPackSizes(sizes []int) error {
+	if s.set != nil {
+		return s.set(sizes)
+	}
+	return nil
 }

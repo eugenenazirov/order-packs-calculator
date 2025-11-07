@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/eugenenazirov/re-partners/internal/storage"
+	"gopkg.in/yaml.v3"
 )
 
 const (

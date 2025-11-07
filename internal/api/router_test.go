@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eugenenazirov/re-partners/internal/calculator"
+	"github.com/eugenenazirov/re-partners/internal/storage"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -57,4 +59,55 @@ func TestResponseRecorderWriteHeader(t *testing.T) {
 	if underlying.Code != http.StatusTeapot {
 		t.Fatalf("expected status to propagate to ResponseWriter")
 	}
+}
+
+func TestWithRateLimiterOptionAppliesLimiter(t *testing.T) {
+	router := newTestRouter(t, WithLogging(false), WithRateLimiter(&staticLimiter{allow: false}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected rate limiter to block request, got %d", rec.Code)
+	}
+}
+
+func TestWithRateLimitDisablesLimiterWhenZero(t *testing.T) {
+	router := newTestRouter(t, WithLogging(false), WithRateLimiter(&staticLimiter{allow: false}), WithRateLimit(0, 0))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected limiter to be disabled, got %d", rec.Code)
+	}
+}
+
+func TestWithRateLimitEnforcesLimit(t *testing.T) {
+	router := newTestRouter(t, WithLogging(false), WithRateLimit(1, 1))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected first request to succeed, got %d", rec.Code)
+	}
+
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req.Clone(req.Context()))
+	if rec2.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected rate limiter to block second request, got %d", rec2.Code)
+	}
+}
+
+func newTestRouter(t *testing.T, opts ...RouterOption) http.Handler {
+	t.Helper()
+
+	store := storage.NewMemoryStorage()
+	calc := calculator.New()
+	handler := NewHandler(calc, store)
+	logger := zaptest.NewLogger(t)
+	return NewRouter(handler, logger, opts...)
 }

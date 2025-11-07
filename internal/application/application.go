@@ -8,12 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go.uber.org/zap"
-
 	"github.com/eugenenazirov/re-partners/internal/api"
 	"github.com/eugenenazirov/re-partners/internal/calculator"
 	"github.com/eugenenazirov/re-partners/internal/config"
 	"github.com/eugenenazirov/re-partners/internal/storage"
+	"go.uber.org/zap"
 )
 
 // App encapsulates the application dependencies and HTTP server.
