@@ -109,14 +109,14 @@ rate_limit:
 	}
 
 	port := "8080"
-	packSizes := []int{10, 20, 30}
+	packSizesStr := "10,20,30"
 	rps := 25.0
 	burst := 50
 
 	overrides := &CLIOverrides{
 		ConfigFile:     yamlFile,
 		Port:           &port,
-		PackSizes:      &packSizes,
+		PackSizesStr:   &packSizesStr,
 		RateLimitRPS:   &rps,
 		RateLimitBurst: &burst,
 	}

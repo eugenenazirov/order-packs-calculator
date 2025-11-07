@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/eugenenazirov/re-partners/internal/application"
 )
 
 func TestBuildRootHandler(t *testing.T) {
@@ -16,9 +18,9 @@ func TestBuildRootHandler(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	handler, err := buildRootHandler(apiHandler)
+	handler, err := application.BuildRootHandler(apiHandler)
 	if err != nil {
-		t.Fatalf("buildRootHandler returned error: %v", err)
+		t.Fatalf("BuildRootHandler returned error: %v", err)
 	}
 
 	t.Run("serves index", func(t *testing.T) {

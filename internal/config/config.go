@@ -54,7 +54,7 @@ type yamlRateLimit struct {
 type CLIOverrides struct {
 	ConfigFile     string
 	Port           *string
-	PackSizes      *[]int
+	PackSizesStr   *string
 	RateLimitRPS   *float64
 	RateLimitBurst *int
 }
@@ -78,7 +78,9 @@ func Load(overrides *CLIOverrides) (Config, error) {
 
 	// Apply CLI overrides (highest precedence)
 	if overrides != nil {
-		applyCLIOverrides(&cfg, overrides)
+		if err := applyCLIOverrides(&cfg, overrides); err != nil {
+			return Config{}, err
+		}
 	}
 
 	// Validate final configuration
@@ -191,13 +193,17 @@ func applyEnvConfig(cfg *Config) {
 }
 
 // applyCLIOverrides applies command-line flag overrides.
-func applyCLIOverrides(cfg *Config, overrides *CLIOverrides) {
+func applyCLIOverrides(cfg *Config, overrides *CLIOverrides) error {
 	if overrides.Port != nil && *overrides.Port != "" {
 		cfg.Port = *overrides.Port
 	}
 
-	if overrides.PackSizes != nil && len(*overrides.PackSizes) > 0 {
-		cfg.InitialPackSizes = *overrides.PackSizes
+	if overrides.PackSizesStr != nil && *overrides.PackSizesStr != "" {
+		sizes, err := parsePackSizes(*overrides.PackSizesStr)
+		if err != nil {
+			return fmt.Errorf("parse pack sizes: %w", err)
+		}
+		cfg.InitialPackSizes = sizes
 	}
 
 	if overrides.RateLimitRPS != nil && *overrides.RateLimitRPS >= 0 {
@@ -207,6 +213,8 @@ func applyCLIOverrides(cfg *Config, overrides *CLIOverrides) {
 	if overrides.RateLimitBurst != nil && *overrides.RateLimitBurst >= 0 {
 		cfg.RateLimitBurst = *overrides.RateLimitBurst
 	}
+
+	return nil
 }
 
 // validateConfig validates the final configuration.
@@ -223,6 +231,8 @@ func validateConfig(cfg Config) error {
 	return nil
 }
 
+// parsePackSizes parses a comma-separated string of pack sizes into a slice of integers.
+// It validates that all values are positive integers.
 func parsePackSizes(raw string) ([]int, error) {
 	parts := strings.Split(raw, ",")
 	sizes := make([]int, 0, len(parts))
@@ -234,6 +244,9 @@ func parsePackSizes(raw string) ([]int, error) {
 		value, err := strconv.Atoi(part)
 		if err != nil {
 			return nil, fmt.Errorf("invalid integer %q", part)
+		}
+		if value <= 0 {
+			return nil, fmt.Errorf("pack size must be positive, got %d", value)
 		}
 		sizes = append(sizes, value)
 	}
