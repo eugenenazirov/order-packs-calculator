@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,30 +12,43 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/eugenenazirov/re-partners/internal/api"
 	"github.com/eugenenazirov/re-partners/internal/calculator"
 	"github.com/eugenenazirov/re-partners/internal/config"
+	"github.com/eugenenazirov/re-partners/internal/logging"
 	"github.com/eugenenazirov/re-partners/internal/storage"
 )
+
+var signalNotify = signal.Notify
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load configuration: %v", err)
+		panic(fmt.Sprintf("failed to load configuration: %v", err))
 	}
+
+	logger, err := logging.New()
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize logger: %v", err))
+	}
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	store := storage.NewMemoryStorage()
 	if err := store.SetPackSizes(cfg.InitialPackSizes); err != nil {
-		log.Fatalf("failed to apply initial pack sizes: %v", err)
+		logger.Fatal("failed to apply initial pack sizes", zap.Error(err))
 	}
 
 	calc := calculator.New()
 	handler := api.NewHandler(calc, store)
-	apiRouter := api.NewRouter(handler, api.WithLogging(cfg.EnableRequestLogging))
+	apiRouter := api.NewRouter(handler, logger, api.WithLogging(cfg.EnableRequestLogging))
 
 	rootHandler, err := buildRootHandler(apiRouter)
 	if err != nil {
-		log.Fatalf("failed to build HTTP handler: %v", err)
+		logger.Fatal("failed to build HTTP handler", zap.Error(err))
 	}
 
 	addr := cfg.Port
@@ -53,29 +65,29 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Order Packs Calculator listening on %s", addr)
+		logger.Info("server listening", zap.String("addr", addr))
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("server error: %v", err)
+			logger.Fatal("server error", zap.Error(err))
 		}
 	}()
 
-	shutdown(server, cfg.ShutdownGracePeriod)
+	shutdown(server, cfg.ShutdownGracePeriod, logger)
 }
 
-func shutdown(server *http.Server, timeout time.Duration) {
+func shutdown(server *http.Server, timeout time.Duration, logger *zap.Logger) {
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signalNotify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	<-quit
-	log.Println("Shutting down server...")
+	logger.Info("shutting down server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("graceful shutdown failed: %v", err)
+		logger.Warn("graceful shutdown failed", zap.Error(err))
 		if closeErr := server.Close(); closeErr != nil {
-			log.Printf("forced close failed: %v", closeErr)
+			logger.Error("forced close failed", zap.Error(closeErr))
 		}
 	}
 }
