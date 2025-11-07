@@ -29,6 +29,18 @@ func WithRateLimiter(limiter rateLimiter) RouterOption {
 	}
 }
 
+// WithRateLimit configures the rate limiter using the provided parameters.
+// Supplying a non-positive rate or burst disables rate limiting.
+func WithRateLimit(rate float64, burst int) RouterOption {
+	return func(cfg *routerConfig) {
+		if rate <= 0 || burst <= 0 {
+			cfg.rateLimiter = nil
+			return
+		}
+		cfg.rateLimiter = newTokenBucketLimiter(rate, burst)
+	}
+}
+
 type routerConfig struct {
 	enableLogging bool
 	logger        *zap.Logger

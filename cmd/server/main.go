@@ -8,10 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"go.uber.org/zap"
 
 	"github.com/eugenenazirov/re-partners/internal/api"
@@ -24,7 +26,40 @@ import (
 var signalNotify = signal.Notify
 
 func main() {
-	cfg, err := config.Load()
+	app := kingpin.New("pack-calculator", "Order Packs Calculator - determines minimal packs needed to fulfil orders")
+	configFile := app.Flag("config", "Path to YAML configuration file").String()
+	port := app.Flag("port", "HTTP port exposed by the service").String()
+	packSizesStr := app.Flag("pack-sizes", "Comma-separated initial pack sizes").String()
+	rateLimitRPSFlag := app.Flag("rate-limit-rps", "Requests per second allowed (set 0 to disable)").Default("-1").Float64()
+	rateLimitBurstFlag := app.Flag("rate-limit-burst", "Burst capacity for rate limiter (set 0 to disable)").Default("-1").Int()
+
+	kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	overrides := &config.CLIOverrides{
+		ConfigFile: *configFile,
+	}
+
+	if *port != "" {
+		overrides.Port = port
+	}
+
+	if *packSizesStr != "" {
+		sizes, err := parsePackSizes(*packSizesStr)
+		if err != nil {
+			panic(fmt.Sprintf("failed to parse pack sizes: %v", err))
+		}
+		overrides.PackSizes = &sizes
+	}
+
+	if *rateLimitRPSFlag >= 0 {
+		overrides.RateLimitRPS = rateLimitRPSFlag
+	}
+
+	if *rateLimitBurstFlag >= 0 {
+		overrides.RateLimitBurst = rateLimitBurstFlag
+	}
+
+	cfg, err := config.Load(overrides)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load configuration: %v", err))
 	}
@@ -44,7 +79,10 @@ func main() {
 
 	calc := calculator.New()
 	handler := api.NewHandler(calc, store)
-	apiRouter := api.NewRouter(handler, logger, api.WithLogging(cfg.EnableRequestLogging))
+	apiRouter := api.NewRouter(handler, logger,
+		api.WithLogging(cfg.EnableRequestLogging),
+		api.WithRateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst),
+	)
 
 	rootHandler, err := buildRootHandler(apiRouter)
 	if err != nil {
@@ -137,4 +175,27 @@ func resolveProjectPath(relative string) (string, error) {
 	}
 
 	return "", fmt.Errorf("unable to locate %s", relative)
+}
+
+func parsePackSizes(raw string) ([]int, error) {
+	parts := strings.Split(raw, ",")
+	sizes := make([]int, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		value, err := strconv.Atoi(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid integer %q", part)
+		}
+		if value <= 0 {
+			return nil, fmt.Errorf("pack size must be positive, got %d", value)
+		}
+		sizes = append(sizes, value)
+	}
+	if len(sizes) == 0 {
+		return nil, fmt.Errorf("no pack sizes provided")
+	}
+	return sizes, nil
 }

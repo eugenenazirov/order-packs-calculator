@@ -16,7 +16,7 @@ func TestShutdownSignals(t *testing.T) {
 		signalNotify = osSignal.Notify
 	})
 
-	signalNotify = func(ch chan<- os.Signal, sig ...os.Signal) {
+	signalNotify = func(ch chan<- os.Signal, _ ...os.Signal) {
 		go func() {
 			ch <- syscall.SIGTERM
 		}()

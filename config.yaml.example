@@ -1,0 +1,30 @@
+# Order Packs Calculator Configuration
+# Copy this file to config.yaml and customize as needed.
+# Configuration precedence: CLI flags > YAML config > Environment variables > Defaults
+
+# HTTP server configuration
+port: "8080"  # HTTP port exposed by the service
+
+# Initial pack sizes (comma-separated integers or YAML list)
+# These are applied when the service starts
+pack_sizes:
+  - 250
+  - 500
+  - 1000
+  - 2000
+  - 5000
+
+# Server timeouts (duration strings, e.g., "10s", "5m", "1h")
+shutdown_grace_period: "10s"    # Grace period for graceful shutdown
+read_header_timeout: "5s"       # Maximum time to read request headers
+write_timeout: "15s"            # Maximum time to write response
+idle_timeout: "60s"             # Maximum time to wait for next request
+
+# Request logging
+enable_request_logging: true    # Enable access logging for HTTP requests
+
+# Rate limiting configuration
+rate_limit:
+  rps: 25.0    # Requests per second allowed (set to 0 to disable)
+  burst: 50    # Burst capacity for the rate limiter (set to 0 to disable)
+
