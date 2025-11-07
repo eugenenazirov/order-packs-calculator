@@ -245,6 +245,27 @@ func TestCalculateEndpointSuccess(t *testing.T) {
 	}
 }
 
+func TestCalculateEndpointRejectsZeroItems(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	payload := map[string]any{
+		"items": 0,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/calculate", bytes.NewReader(data))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for zero items, got %d", rec.Code)
+	}
+}
+
 func TestCalculateEndpointImpossible(t *testing.T) {
 	router, _ := setupTestRouter(t)
 

@@ -14,61 +14,61 @@ import (
 	"github.com/eugenenazirov/re-partners/internal/storage"
 )
 
-func startServer(t *testing.T) *httptest.Server {
+func newRouter(t *testing.T) http.Handler {
 	t.Helper()
 
 	store := storage.NewMemoryStorage()
 	calc := calculator.New()
 	handler := api.NewHandler(calc, store)
 	logger := zaptest.NewLogger(t)
-	router := api.NewRouter(handler, logger)
+	return api.NewRouter(handler, logger)
+}
 
-	return httptest.NewServer(router)
+func performRequest(t *testing.T, handler http.Handler, method, target string, body []byte, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	var reader *bytes.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	} else {
+		reader = bytes.NewReader(nil)
+	}
+	req := httptest.NewRequest(method, target, reader)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	return rec
 }
 
 func TestIntegrationFlow(t *testing.T) {
-	server := startServer(t)
-	t.Cleanup(server.Close)
+	handler := newRouter(t)
 
-	resp, err := http.Get(server.URL + "/api/health")
-	if err != nil {
-		t.Fatalf("health request failed: %v", err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 from health, got %d", resp.StatusCode)
+	rec := performRequest(t, handler, http.MethodGet, "/api/health", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from health, got %d", rec.Code)
 	}
 
 	updatePayload := map[string]any{"packSizes": []int{23, 31, 53}}
 	payload, _ := json.Marshal(updatePayload)
-	req, err := http.NewRequest(http.MethodPut, server.URL+"/api/pack-sizes", bytes.NewReader(payload))
-	if err != nil {
-		t.Fatalf("failed to build request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("pack sizes update failed: %v", err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 from pack sizes update, got %d", resp.StatusCode)
+	rec = performRequest(t, handler, http.MethodPut, "/api/pack-sizes", payload, map[string]string{"Content-Type": "application/json"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from pack sizes update, got %d", rec.Code)
 	}
 
 	calcPayload := map[string]any{"items": 500_000}
 	body, _ := json.Marshal(calcPayload)
-	resp, err = http.Post(server.URL+"/api/calculate", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("calculate request failed: %v", err)
+	rec = performRequest(t, handler, http.MethodPost, "/api/calculate", body, map[string]string{"Content-Type": "application/json"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from calculate, got %d", rec.Code)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 from calculate, got %d", resp.StatusCode)
-	}
+
 	var response struct {
 		TotalItems int `json:"totalItems"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	if response.TotalItems != 500_000 {

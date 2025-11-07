@@ -70,8 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     clearStatus(calculateStatus);
 
     const items = Number(itemsInput.value);
-    if (!Number.isInteger(items) || items < 0) {
-      showStatus(calculateStatus, 'Please enter a non-negative integer.', 'error');
+    if (!Number.isInteger(items) || items <= 0) {
+      showStatus(calculateStatus, 'Please enter a positive integer.', 'error');
       return;
     }
 

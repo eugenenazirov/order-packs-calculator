@@ -123,8 +123,8 @@ func (h *Handler) handleCalculate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Items < 0 {
-		writeError(w, http.StatusBadRequest, "Invalid request", "items must be a non-negative integer")
+	if req.Items <= 0 {
+		writeError(w, http.StatusBadRequest, "Invalid request", "items must be a positive integer")
 		return
 	}
 
