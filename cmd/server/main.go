@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"go.uber.org/zap"
-
 	"github.com/eugenenazirov/re-partners/internal/application"
 	"github.com/eugenenazirov/re-partners/internal/config"
 	"github.com/eugenenazirov/re-partners/internal/logging"
+	"go.uber.org/zap"
 )
 
 var signalNotify = signal.Notify
