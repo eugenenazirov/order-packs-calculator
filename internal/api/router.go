@@ -4,11 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // RouterOption configures the behaviour of NewRouter.
@@ -23,12 +24,14 @@ func WithLogging(enabled bool) RouterOption {
 
 type routerConfig struct {
 	enableLogging bool
+	logger        *zap.Logger
 }
 
 // NewRouter creates an HTTP router with standard middleware.
-func NewRouter(handler *Handler, opts ...RouterOption) http.Handler {
+func NewRouter(handler *Handler, logger *zap.Logger, opts ...RouterOption) http.Handler {
 	cfg := routerConfig{
 		enableLogging: true,
+		logger:        logger,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -42,9 +45,9 @@ func NewRouter(handler *Handler, opts ...RouterOption) http.Handler {
 
 	var root http.Handler = mux
 	root = corsMiddleware(root)
-	root = recoveryMiddleware(root)
+	root = recoveryMiddleware(cfg.logger, root)
 	if cfg.enableLogging {
-		root = loggingMiddleware(root)
+		root = loggingMiddleware(cfg.logger, root)
 	}
 	root = requestIDMiddleware(root)
 
@@ -68,7 +71,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func loggingMiddleware(next http.Handler) http.Handler {
+func loggingMiddleware(logger *zap.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rec := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
 		start := time.Now()
@@ -76,15 +79,21 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 		requestID := requestIDFromContext(r.Context())
-		log.Printf("%s %s %d %s request_id=%s", r.Method, r.URL.Path, rec.status, duration, requestID)
+		logger.Info("request completed",
+			zap.String("method", r.Method),
+			zap.String("path", r.URL.Path),
+			zap.Int("status", rec.status),
+			zap.Duration("duration", duration),
+			zap.String("request_id", requestID),
+		)
 	})
 }
 
-func recoveryMiddleware(next http.Handler) http.Handler {
+func recoveryMiddleware(logger *zap.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				log.Printf("panic recovered: %v", rec)
+				logger.Error("panic recovered", zap.Any("error", rec))
 				writeError(w, http.StatusInternalServerError, "Internal error", "unexpected server error")
 			}
 		}()

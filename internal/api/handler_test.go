@@ -2,12 +2,15 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
+
+	"go.uber.org/zap/zaptest"
 
 	"github.com/eugenenazirov/re-partners/internal/calculator"
 	"github.com/eugenenazirov/re-partners/internal/storage"
@@ -42,10 +45,27 @@ func setupTestRouter(t *testing.T) (http.Handler, *controllableClock) {
 	clock := newControllableClock(time.Date(2024, 11, 1, 12, 0, 0, 0, time.UTC))
 
 	handler := NewHandler(calc, store, WithClock(clock.Now))
-	router := NewRouter(handler, WithLogging(false))
+	logger := zaptest.NewLogger(t)
+	router := NewRouter(handler, logger, WithLogging(false))
 
 	return router, clock
 }
+
+func TestRequestIDHelpers(t *testing.T) {
+	ctx := contextWithRequestID(context.Background(), "abc")
+	if got := requestIDFromContext(ctx); got != "abc" {
+		t.Fatalf("expected abc, got %s", got)
+	}
+	resp := httptest.NewRecorder()
+	writeInternalError(resp, assertError("boom"))
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 status, got %d", resp.Code)
+	}
+}
+
+type assertError string
+
+func (a assertError) Error() string { return string(a) }
 
 func TestHealthEndpoint(t *testing.T) {
 	router, clock := setupTestRouter(t)
