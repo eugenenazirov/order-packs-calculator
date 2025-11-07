@@ -2,6 +2,7 @@
 bin/
 build/
 dist/
+.cache/
 
 # Go build artifacts
 *.exe
