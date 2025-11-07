@@ -10,7 +10,7 @@ build:
 	go build ./...
 
 .PHONY: run
-run:
+run: config-check
 	go run ./cmd/server
 
 .PHONY: lint
@@ -47,6 +47,19 @@ tidy:
 .PHONY: clean
 clean:
 	rm -rf bin build dist
+
+.PHONY: config-check
+config-check:
+	@if [ ! -f config.yaml ]; then \
+		echo "❌ Error: config.yaml not found!"; \
+		echo ""; \
+		echo "Please create it from the example:"; \
+		echo "  cp config.yaml.example config.yaml"; \
+		echo ""; \
+		echo "Then customize it for your environment."; \
+		exit 1; \
+	fi
+	@echo "✓ config.yaml found"
 
 .PHONY: tools
 tools: $(GOLANGCI_LINT)

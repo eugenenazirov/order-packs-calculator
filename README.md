@@ -31,18 +31,30 @@ docs/                      # supplementary documentation (api.md, algorithm.md, 
 
 ## Quick Start
 
+The application supports **two configuration modes**:
+- **Docker/Compose:** Uses environment variables (no config.yaml needed)
+- **Local development:** Uses `config.yaml` file
+
 ### Docker Compose (recommended)
 
 ```bash
-docker compose up --build
+# Just start - configuration is in docker-compose.yml
+make compose-up
+# or: docker compose up --build
+
 # open http://localhost:8080
 ```
+
+All configuration is managed via environment variables in `docker-compose.yml`. No need to create a config file.
 
 ### Local Development
 
 Requirements: Go ≥ 1.25.1, Node not required.
 
 ```bash
+# Create config file (first time only)
+cp config.yaml.example config.yaml
+
 # run API + UI locally
 make run
 
@@ -70,14 +82,25 @@ The application supports multiple configuration sources with the following prece
 3. **Environment variables** – Traditional environment-based configuration
 4. **Defaults** – Built-in default values
 
-### YAML Configuration File
+### Configuration by Environment
 
-You can use a YAML configuration file for structured configuration. Copy `config.yaml.example` to `config.yaml` and customize as needed:
+**🐳 Docker/Compose:** Uses **environment variables** only (see `docker-compose.yml`)
+- No config.yaml needed in the container
+- All settings via ENV vars in docker-compose.yml
+- Simple and container-native
 
+**💻 Local Development:** Uses **config.yaml** file
 ```bash
+# Create your local config (first time only)
 cp config.yaml.example config.yaml
+
 # Edit config.yaml with your settings
+# This file is git-ignored for environment-specific settings
 ```
+
+### YAML Configuration File (Local Development)
+
+The `config.yaml` file is used for local development outside of Docker. It's not tracked in git (in `.gitignore`), allowing each developer to have their own configuration.
 
 Example `config.yaml`:
 
@@ -137,6 +160,18 @@ For backward compatibility, environment variables are still supported:
 
 **Note:** Environment variables override YAML config but are overridden by CLI flags.
 
+**Docker Port Configuration:**
+Docker containers listen on port **8080** internally (set via PORT environment variable in docker-compose.yml). To expose it on a different host port, use Docker's port mapping:
+```bash
+# Access the service on host port 3000, but it still runs on 8080 inside the container
+docker run -p 3000:8080 your-image
+
+# Or in docker-compose.yml:
+ports:
+  - "3000:8080"
+```
+To change the internal container port, modify the `PORT` environment variable in `docker-compose.yml`.
+
 ## Testing & Quality
 
 ```bash
@@ -185,8 +220,20 @@ More detail, including the `[23, 31, 53] → 500 000` walkthrough, lives in `d
 
 ## Deployment
 
-- **Docker:** `docker compose up --build` runs the service as a non-root user on Alpine with a baked-in healthcheck.
-- **Kubernetes / other schedulers:** reuse the Docker image and configure the same env vars plus readiness checks hitting `/api/health`.
+### Local / Docker
+
+- **Docker Compose (recommended for local):** `docker compose up --build` runs the service as a non-root user on Alpine with a baked-in healthcheck.
+
+### Production / Cloud
+
+- **Fly.io (recommended for demos/test tasks):** Free tier deployment with no cold starts. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for complete guide.
+  ```bash
+  # Quick deploy
+  flyctl launch --config fly.toml --no-deploy
+  flyctl deploy
+  ```
+  
+- **Kubernetes / other schedulers:** Reuse the Docker image and configure the same env vars plus readiness checks hitting `/api/health`.
 
 ## Additional Resources
 

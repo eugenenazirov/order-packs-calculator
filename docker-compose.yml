@@ -6,8 +6,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      PORT: 8080
+      # Docker Compose uses environment variables for configuration
+      # Local development (outside Docker) uses config.yaml
+      PORT: "8080"
       PACK_SIZES: "250,500,1000,2000,5000"
+      RATE_LIMIT_RPS: "25.0"
+      RATE_LIMIT_BURST: "50"
+      ENABLE_REQUEST_LOGGING: "true"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
       interval: 30s

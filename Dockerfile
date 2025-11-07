@@ -7,7 +7,7 @@ RUN apk add --no-cache build-base git
 
 WORKDIR /src
 
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY internal ./internal
 COPY cmd ./cmd
 COPY web ./web
@@ -26,13 +26,12 @@ WORKDIR /app
 COPY --from=builder /out/pack-calculator /usr/local/bin/pack-calculator
 COPY --from=builder /src/web ./web
 
-ENV PORT=8080 \
-    PACK_SIZES="250,500,1000,2000,5000"
-
+# Docker containers use environment variables for configuration (see docker-compose.yml)
+# Local development uses config.yaml (not copied into the image)
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget -qO- http://127.0.0.1:${PORT}/api/health >/dev/null 2>&1 || exit 1
+    CMD wget -qO- http://127.0.0.1:8080/api/health >/dev/null 2>&1 || exit 1
 
 USER app
 

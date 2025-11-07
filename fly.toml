@@ -1,0 +1,36 @@
+# fly.toml app configuration file generated for order-packs-calculator on 2025-11-07T16:25:19+05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'order-packs-calculator'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  PACK_SIZES = '250,500,1000,2000,5000'
+  PORT = '8080'
+  RATE_LIMIT_BURST = '50'
+  RATE_LIMIT_RPS = '25'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/api/health'
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
