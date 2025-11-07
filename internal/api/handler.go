@@ -56,6 +56,7 @@ func NewHandler(calc calculator.Calculator, store storage.Storage, opts ...Handl
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
+	_ = r
 	resp := healthResponse{
 		Status:    "ok",
 		Timestamp: h.clock(),
@@ -64,6 +65,7 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetPackSizes(w http.ResponseWriter, r *http.Request) {
+	_ = r
 	sizes, err := h.storage.GetPackSizes()
 	if err != nil {
 		writeInternalError(w, err)
