@@ -14,7 +14,7 @@ linters:
 formatters:
   enable:
     - gofmt
-    - goimports
+    - gci
 
 linters-settings:
   revive:
@@ -22,3 +22,10 @@ linters-settings:
       - name: exported
         arguments:
           - say_reasons
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/eugenenazirov/re-partners)
+    skip-generated: true
+    skip-vendor: true
