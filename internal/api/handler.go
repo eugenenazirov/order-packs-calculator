@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -143,7 +144,8 @@ func (h *Handler) handleCalculate(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(calcErr, calculator.ErrInvalidItems):
 			writeError(w, http.StatusBadRequest, "Invalid request", calcErr.Error())
 		case errors.Is(calcErr, calculator.ErrCannotFulfill):
-			writeError(w, http.StatusUnprocessableEntity, "Cannot pack exactly", calcErr.Error())
+			suggestion := fmt.Sprintf("Consider adding a pack size that divides %d or adjust the order quantity", req.Items)
+			writeError(w, http.StatusUnprocessableEntity, "Cannot pack exactly", calcErr.Error(), suggestion)
 		case errors.Is(calcErr, calculator.ErrInvalidPackSizes):
 			writeError(w, http.StatusInternalServerError, "Internal error", calcErr.Error())
 		default:
@@ -229,8 +231,9 @@ type healthResponse struct {
 }
 
 type errorResponse struct {
-	Error   string `json:"error"`
-	Details string `json:"details,omitempty"`
+	Error      string `json:"error"`
+	Details    string `json:"details,omitempty"`
+	Suggestion string `json:"suggestion,omitempty"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -241,11 +244,15 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-func writeError(w http.ResponseWriter, status int, message, details string) {
-	writeJSON(w, status, errorResponse{
+func writeError(w http.ResponseWriter, status int, message, details string, suggestion ...string) {
+	resp := errorResponse{
 		Error:   message,
 		Details: details,
-	})
+	}
+	if len(suggestion) > 0 {
+		resp.Suggestion = suggestion[0]
+	}
+	writeJSON(w, status, resp)
 }
 
 func writeInternalError(w http.ResponseWriter, err error) {

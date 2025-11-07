@@ -12,7 +12,7 @@ import (
 func TestLoggingMiddleware(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	var called bool
-	handler := loggingMiddleware(logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := loggingMiddleware(logger, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusAccepted)
 	}))

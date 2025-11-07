@@ -22,9 +22,17 @@ func WithLogging(enabled bool) RouterOption {
 	}
 }
 
+// WithRateLimiter overrides the default request rate limiter (primarily for tests).
+func WithRateLimiter(limiter rateLimiter) RouterOption {
+	return func(cfg *routerConfig) {
+		cfg.rateLimiter = limiter
+	}
+}
+
 type routerConfig struct {
 	enableLogging bool
 	logger        *zap.Logger
+	rateLimiter   rateLimiter
 }
 
 // NewRouter creates an HTTP router with standard middleware.
@@ -32,6 +40,7 @@ func NewRouter(handler *Handler, logger *zap.Logger, opts ...RouterOption) http.
 	cfg := routerConfig{
 		enableLogging: true,
 		logger:        logger,
+		rateLimiter:   newTokenBucketLimiter(25, 50),
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -49,6 +58,7 @@ func NewRouter(handler *Handler, logger *zap.Logger, opts ...RouterOption) http.
 	if cfg.enableLogging {
 		root = loggingMiddleware(cfg.logger, root)
 	}
+	root = rateLimitMiddleware(cfg.rateLimiter, root)
 	root = requestIDMiddleware(root)
 
 	return root

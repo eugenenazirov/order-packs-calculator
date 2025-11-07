@@ -3,10 +3,9 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
-
-	"slices"
 )
 
 func TestNewMemoryStorageReturnsDefaultSizes(t *testing.T) {

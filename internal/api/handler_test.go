@@ -285,6 +285,16 @@ func TestCalculateEndpointImpossible(t *testing.T) {
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected status 422, got %d", rec.Code)
 	}
+
+	var body struct {
+		Suggestion string `json:"suggestion"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if body.Suggestion == "" {
+		t.Fatalf("expected suggestion to be populated")
+	}
 }
 
 func TestCalculateEndpointEdgeCase(t *testing.T) {
