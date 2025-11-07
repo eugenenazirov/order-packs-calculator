@@ -15,7 +15,7 @@ Order Packs Calculator is a Go web service plus lightweight UI that determines t
 - Token-bucket rate limiting to blunt accidental or malicious request bursts.
 - Containerised deployment via multi-stage Dockerfile and Compose.
 
-**Tech stack:** Go 1.25+, standard library net/http, HTML/CSS/JavaScript, Docker, Docker Compose.
+**Tech stack:** Go ≥ 1.25.1, standard library net/http, HTML/CSS/JavaScript, Docker, Docker Compose.
 
 ## Architecture Overview
 
